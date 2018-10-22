@@ -1,0 +1,35 @@
+{
+  "name": "react-native-nosql-to-sqlite",
+  "title": "React Native Nosql To Sqlite",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/github_account/react-native-nosql-to-sqlite.git",
+    "baseUrl": "https://github.com/github_account/react-native-nosql-to-sqlite"
+  },
+  "keywords": [
+    "react-native"
+  ],
+  "author": {
+    "name": "Your Name",
+    "email": "yourname@email.com"
+  },
+  "license": "Apache-2.0",
+  "licenseFilename": "LICENSE",
+  "readmeFilename": "README.md",
+  "peerDependencies": {
+    
+    "react": "16.2.0",
+    "react-native": "^0.52.0"
+  },
+  "devDependencies": {
+    
+    "react": "16.2.0",
+    "react-native": "^0.52.0"
+  }
+}
