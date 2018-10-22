@@ -1,5 +1,7 @@
 #import "RNNosqlToSqlite.h"
 
+#import "DBController.h"
+
 @implementation RNNosqlToSqlite
 
 RCT_EXPORT_MODULE()
@@ -9,9 +11,13 @@ RCT_EXPORT_MODULE()
     return dispatch_get_main_queue();
 }
 
-RCT_EXPORT_METHOD(sampleMethod:(NSString *)stringArgument numberParameter:(nonnull NSNumber *)numberArgument callback:(RCTResponseSenderBlock)callback)
-{
-    // TODO: Implement
+RCT_EXPORT_METHOD(configureDatabaseWithConfig:(NSDictionary *)config) {
+    [[DBController sharedInstance] configureDatabaseWithConfig:config];
 }
+
+RCT_EXPORT_METHOD(importData) {
+    [[DBController sharedInstance] importData];
+}
+
 
 @end
