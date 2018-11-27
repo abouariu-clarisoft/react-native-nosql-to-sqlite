@@ -5,6 +5,8 @@ file.
 
 The configuration file contains the fields from every collection that should become columns in the SQLite database and all other fields will be saved as a stringified JSON in columns called `extra` in every table.
 
+The collections are imported from the Documents folder.
+
 ## Getting started
 
 `$ npm install abouariu-clarisoft/react-native-nosql-to-sqlite --save`
