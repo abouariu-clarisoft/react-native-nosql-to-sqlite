@@ -15,8 +15,10 @@ RCT_EXPORT_METHOD(configureDatabaseWithConfig:(NSDictionary *)config) {
     [[DBController sharedInstance] configureDatabaseWithConfig:config];
 }
 
-RCT_EXPORT_METHOD(importData) {
-    [[DBController sharedInstance] importData];
+RCT_EXPORT_METHOD(importData:(RCTResponseSenderBlock)callback) {
+    [[DBController sharedInstance] importData:^(BOOL success) {
+        callback(@[[NSNull null]]);
+    }];
 }
 
 RCT_EXPORT_METHOD(performTestQuery) {
