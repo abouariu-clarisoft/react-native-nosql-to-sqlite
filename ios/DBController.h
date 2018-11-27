@@ -19,7 +19,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (instancetype)sharedInstance;
 
 - (void)configureDatabaseWithConfig:(NSDictionary *)config;
-- (void)importData;
+- (void)importData:(void(^)(BOOL success))completion;
+- (void)performTestQuery;
 
 @end
 

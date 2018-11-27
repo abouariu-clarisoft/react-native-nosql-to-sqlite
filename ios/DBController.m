@@ -52,45 +52,32 @@
 }
 
 - (void)configureDatabaseWithConfig:(NSDictionary *)config {
-    //    sqlite3 *db;
-    //    sqlite3_stmt *stmt;
-    //    bool sqlcipher_valid = NO;
-    
-    //    if (sqlite3_open([self.databasePath UTF8String], &db) == SQLITE_OK) {
-    //        const char* key = [self.encryptionKey UTF8String];
-    //        sqlite3_key(db, key, strlen(key));
-    //        if (sqlite3_exec(db, (const char*) "SELECT count(*) FROM sqlite_master;", NULL, NULL, NULL) == SQLITE_OK) {
-    //            if(sqlite3_prepare_v2(db, "PRAGMA cipher_version;", -1, &stmt, NULL) == SQLITE_OK) {
-    //                if(sqlite3_step(stmt)== SQLITE_ROW) {
-    //                    const unsigned char *ver = sqlite3_column_text(stmt, 0);
-    //                    if(ver != NULL) {
-    //                        sqlcipher_valid = YES;
-    //
-    //                        // password is correct (or database initialize), and verified to be using sqlcipher
-    //
-    //                    }
-    //                }
-    //                sqlite3_finalize(stmt);
-    //            }
-    //        }
-    //        sqlite3_close(db);
-    //    }
-    
     _config = config;
     _db = [FMDatabase databaseWithPath:self.databasePath];
     _dbQueue = [FMDatabaseQueue databaseQueueWithPath:self.databasePath];
     [self.db open];
-        [self.dbQueue inDatabase:^(FMDatabase * _Nonnull db) {
-            //        [self.db setKey:self.encryptionKey];
-        }];
+    [self.db setKey:self.encryptionKey];
 }
 
 /**
  Receives an array with filenames of the collections that must be imported in the database.
  These collections are found in the documents directory.
  */
-- (void)importData {
+- (void)importData:(void (^)(BOOL))completion {
     NSArray *collections = [[self.config allKeys] sortedArrayUsingComparator:^NSComparisonResult(id  _Nonnull obj1, id  _Nonnull obj2) {
+        // force a collection to be processed first
+        /*
+        if ([obj1 isEqualToString:@"relationship"]) {
+            if ([obj1 compare:obj2] == NSOrderedAscending) {
+                return NSOrderedAscending;
+            } else return NSOrderedDescending;
+        }
+        if ([obj2 isEqualToString:@"relationship"]) {
+            if ([obj1 compare:obj2] == NSOrderedAscending) {
+                return NSOrderedDescending;
+            } else return NSOrderedAscending;
+        }
+        */
         return [obj1 compare:obj2];
     }];
     NSArray *tableOrder = [self getTableCreationOrder:collections processed:nil];
@@ -100,6 +87,9 @@
             NSLog(@"Started importing collection %@...", collection);
             [self importCollection:collection];
             NSLog(@"Finished importing data in collection %@!", collection);
+            if (idx == collections.count - 1) {
+                completion(YES);
+            }
         });
     }];
 }
@@ -140,13 +130,13 @@
 
 - (void)importCollection:(NSString *)collection {
     // create the table
-        [self.dbQueue inDatabase:^(FMDatabase * _Nonnull db) {
-            [self createTable:collection config:self.config callback:^(BOOL created) {
-                if (!created) {
-                    NSLog(@"Collection %@ not created!", collection);
-                }
-            }];
+    [self.dbQueue inDatabase:^(FMDatabase * _Nonnull db) {
+        [self createTable:collection config:self.config callback:^(BOOL created) {
+            if (!created) {
+                NSLog(@"Collection %@ not created!", collection);
+            }
         }];
+    }];
     // import data
     NSArray *documentPaths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *documentDir = [documentPaths objectAtIndex:0];
@@ -174,7 +164,7 @@
                                                                  options:NSJSONReadingMutableContainers
                                                                    error:&jsonError];
             
-//            NSLog(@"\n%@", importableObject);
+            //            NSLog(@"\n%@", importableObject);
             [self insertObject:json inTable:collection config:self.config[collection]];
         } else {
             [importableObject appendString:line];
@@ -206,14 +196,14 @@
                 NSString *tableName = [NSString stringWithFormat:@"%@_%@", table, value[@"references"]];
                 NSDictionary *manyToManyConfig = @{
                                                    tableName: @{
-                                                   [NSString stringWithFormat:@"%@Id", table]: @{
-                                                           @"type": @"VARCHAR(100)",
-                                                           @"references": table
-                                                           },
-                                                   [NSString stringWithFormat:@"%@Id", value[@"references"]]: @{
-                                                           @"type": @"VARCHAR(100)",
-                                                           @"references": value[@"references"]},
-                                                   }
+                                                           [NSString stringWithFormat:@"%@Id", table]: @{
+                                                                   @"type": @"VARCHAR(100)",
+                                                                   @"references": table
+                                                                   },
+                                                           [NSString stringWithFormat:@"%@Id", value[@"references"]]: @{
+                                                                   @"type": @"VARCHAR(100)",
+                                                                   @"references": value[@"references"]},
+                                                           }
                                                    };
                 [self createTable:tableName
                            config:manyToManyConfig
@@ -237,7 +227,7 @@
         [query appendString:@"\n"];
     }
     [query appendString:@");"];
-//    NSLog(@"\n\n%@\n\n", query);
+    //    NSLog(@"\n\n%@\n\n", query);
     
     BOOL result = [self.db executeStatements:query];
     callback(result);
@@ -251,12 +241,17 @@
     [importantConfigFields enumerateObjectsUsingBlock:^(NSString *key, NSUInteger idx, BOOL * _Nonnull stop) {
         if (object[key]) {
             [mappedObject setValue:object[key] forKey:key];
-        } else if ([key containsString:@"_"] && [config[key] objectForKey:@"manyOn"]) {
+            return;
+        }
+        // Handle embedded fields that should become columns
+        if ([key containsString:@"_"]) {
             NSArray *components = [key componentsSeparatedByString:@"_"];
-            //fist component should be a key of the object
+            //first component should be a key of the object
             if (!object[components[0]]) {
                 return;
-            } else {
+            }
+            // Handle embedded fields that have many to many relationships
+            if ([config[key] objectForKey:@"manyOn"]) {
                 id manyArray = object[components[0]];
                 if (![manyArray isKindOfClass:[NSArray class]]) {
                     NSAssert(false, @"Object %@ should be an array for M-M mapping in table %@!", components[0], table);
@@ -271,15 +266,45 @@
                         }
                     }];
                 }
+            } else {
+                // Handle regular embedded fields (no many-to-many relationships)
+                // I.e. 1: persons_0_id would be an object with key "person" that contains an array of objects that have the property "_id".
+                // I.e. 2: addresses_locationId would be an object with key "addresses" that contains an object with key "locationId".
+                // The last property would be of the type specified in the field "type" in the config file.
+                id embeddedField = object;
+                
+                // Go through all the properties in depth (array or object)
+                for (NSString *component in components) {
+                    NSString *prop = component;
+                    
+                    // determine if the component is the index of an array or the key of an object
+                    NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
+                    formatter.numberStyle = NSNumberFormatterDecimalStyle;
+                    NSNumber *arrayIndex = [formatter numberFromString:component];
+                    if (arrayIndex) {
+                        // component is the index of an array
+                        embeddedField = embeddedField[[arrayIndex integerValue]];
+                    } else {
+                        // component is the key of an object
+                        embeddedField = [embeddedField valueForKey:prop];
+                    }
+                }
+                
+                // Set the value to be saved in the column with the given key
+                [mappedObject setValue:embeddedField forKey:key];
             }
         }
     }];
+    
+    // All fields that are not part of the config file will be saved in a column named "extra"
     [object enumerateKeysAndObjectsUsingBlock:^(NSString *key, id value, BOOL * _Nonnull stop) {
         // throw fields that are not in config in the extra fields
         if (![importantConfigFields containsObject:key]) {
             [extraFields setObject:value forKey:key];
         }
     }];
+    
+    // Create the JSON string with the extra fields
     NSError *error = nil;
     NSString *stringifiedExtraFields;
     NSData *dataExtraFields = [NSJSONSerialization dataWithJSONObject:extraFields options:NSJSONWritingPrettyPrinted error:&error];
@@ -288,9 +313,14 @@
     } else {
         stringifiedExtraFields = [[NSString alloc] initWithData:dataExtraFields encoding:NSUTF8StringEncoding];
     }
+    
+    // Set stringified JSON to be saved in the "extra" column
     [mappedObject setObject:extraFields forKey:@"extra"];
     
+    // Insert the current record
     [self insertRecord:mappedObject inTable:table];
+    
+    // Insert the additional records related to many-to-many relationship with the current record
     [manyToManyRecords enumerateObjectsUsingBlock:^(NSDictionary *record, NSUInteger idx, BOOL * _Nonnull stop) {
         [self insertRecord:record inTable:record[@"table"]];
     }];
@@ -324,13 +354,51 @@
     [query appendString:@"VALUES ("];
     [query appendString:placeHolderValues];
     
-        [self.dbQueue inDatabase:^(FMDatabase * _Nonnull db) {
-            NSError *error = nil;
-            [db executeUpdate:query values:values error:&error];
-            if (error) {
-                NSLog(@"Error inserting object %@ in table %@: %@", record, table, error.localizedDescription);
-            }
-        }];
+    [self.dbQueue inDatabase:^(FMDatabase * _Nonnull db) {
+        NSError *error = nil;
+        [db executeUpdate:query values:values error:&error];
+        if (error) {
+            NSLog(@"Error inserting object %@ in table %@: %@", record, table, error.localizedDescription);
+        }
+    }];
+}
+
+- (void)performTestQuery {
+    
+    /**
+     Select follow-ups that meet the following criteria:
+     follow-up date is between 2 specified days
+     follow-up has a specified status
+     person has a specified age
+     person has a specified gender
+     includes cases (person's id is either person_0_id or person_1_id in a record from relationship table)
+     results are ordered by follow-up's date and id descending
+     results are paginated
+     */
+    
+    NSDate *date = [NSDate date];
+    NSLog(@"%@ Started executing query...", date);
+    NSString *query = @"select * from followUp \
+    join person on person._id = followUp.personId \
+    and followUp.date between '2018-11-01' and '2018-11-23' \
+    and followUp.statusId = 'LNG_REFERENCE_DATA_CONTACT_DAILY_FOLLOW_UP_STATUS_TYPE_NOT_PERFORMED' \
+    and person.age_years between 14 and 80 \
+    and person.gender = 'LNG_REFERENCE_DATA_CATEGORY_GENDER_MALE' \
+    left join relationship as R1 on R1.persons_0_id = person._id \
+    left join relationship as R2 on R2.persons_1_id = person._id \
+    order by followUp.date, followUp._id desc \
+    limit 100, 50";
+    
+    [self.dbQueue inDatabase:^(FMDatabase * _Nonnull db) {
+        FMResultSet *set = [db executeQuery:query];
+        NSInteger count = 0;
+        while ([set next]) {
+            count++;
+            NSLog(@"%d", [set intForColumn:@"age_years"]);
+        }
+        NSDate *endDate = [NSDate date];
+        NSLog(@"%@ Query execution complete! %ld results returned in %f ms", endDate, count, [endDate timeIntervalSinceDate:date]*1000);
+    }];
 }
 
 @end

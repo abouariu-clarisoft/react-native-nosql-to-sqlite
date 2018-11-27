@@ -2,6 +2,9 @@
 #
 .DS_Store
 
+# Example
+example
+
 # node.js
 #
 node_modules/

@@ -19,5 +19,8 @@ RCT_EXPORT_METHOD(importData) {
     [[DBController sharedInstance] importData];
 }
 
+RCT_EXPORT_METHOD(performTestQuery) {
+    [[DBController sharedInstance] performTestQuery];
+}
 
 @end

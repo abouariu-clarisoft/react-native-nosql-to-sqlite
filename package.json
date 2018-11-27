@@ -2,7 +2,7 @@
   "name": "react-native-nosql-to-sqlite",
   "title": "React Native Nosql To Sqlite",
   "version": "1.0.0",
-  "description": "",
+  "description": "Creates a sqlite database from a no-sql database based on a configuration file.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -23,12 +23,10 @@
   "licenseFilename": "LICENSE",
   "readmeFilename": "README.md",
   "peerDependencies": {
-    
     "react": "16.2.0",
     "react-native": "^0.52.0"
   },
   "devDependencies": {
-    
     "react": "16.2.0",
     "react-native": "^0.52.0"
   }
