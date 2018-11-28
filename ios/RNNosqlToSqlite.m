@@ -42,7 +42,7 @@ RCT_EXPORT_METHOD(performSelect:(NSString *)query completion:(RCTResponseSenderB
                                               }
                                           }
                                           // Call the callback with the parse error (if any) and parse result
-                                          callback(@[parseError, @(affectedRows), stringifiedResult]);
+                                          callback(@[parseError.localizedDescription, @(affectedRows), stringifiedResult]);
     }];
 }
 
