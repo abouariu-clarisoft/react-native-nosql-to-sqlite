@@ -18,8 +18,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (instancetype)sharedInstance;
 
-- (void)configureDatabaseWithConfig:(NSDictionary *)config;
+- (void)configureDatabaseWithName:(NSString *)name encryptionKey:(NSString *)encryptionKey config:(NSDictionary *)config;
 - (void)importData:(void(^)(BOOL success))completion;
+- (void)performSelect:(NSString *)query completion:(void(^)( NSString * _Nullable error, NSInteger affectedRows, NSArray * _Nullable result))completion;
 - (void)performTestQuery;
 
 @end
