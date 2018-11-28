@@ -24,7 +24,7 @@ RCT_EXPORT_METHOD(importData:(RCTResponseSenderBlock)callback) {
 RCT_EXPORT_METHOD(performSelect:(NSString *)query completion:(RCTResponseSenderBlock)callback) {
     [[DBController sharedInstance] performSelect:query
                                       completion:^(NSString * _Nullable error, NSInteger affectedRows, NSArray * _Nullable result) {
-                                          callback(@[error ? error : [NSNull null], @(affectedRows), result])
+                                          callback(@[error ? error : [NSNull null], @(affectedRows), result]);
     }];
 }
 
