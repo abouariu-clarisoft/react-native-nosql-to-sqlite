@@ -379,7 +379,7 @@
     }
     
     // Set stringified JSON to be saved in the "extra" column
-    [mappedObject setObject:extraFields forKey:@"extra"];
+    [mappedObject setObject:stringifiedExtraFields forKey:@"extra"];
     
     // Insert the current record
     [self insertRecord:mappedObject inTable:table];

@@ -24,25 +24,7 @@ RCT_EXPORT_METHOD(importData:(RCTResponseSenderBlock)callback) {
 RCT_EXPORT_METHOD(performSelect:(NSString *)query completion:(RCTResponseSenderBlock)callback) {
     [[DBController sharedInstance] performSelect:query
                                       completion:^(NSString * _Nullable error, NSInteger affectedRows, NSArray * _Nullable result) {
-                                          // Return the callback if database query errored out
-                                          if (error) {
-                                              callback(@[error, @(affectedRows), nil]);
-                                              return;
-                                          }
-                                          
-                                          // Attempt to create a JSON string from the result
-                                          NSString *stringifiedResult = nil;
-                                          NSError *parseError = nil;
-                                          if (result) {
-                                              NSData *jsonData = [NSJSONSerialization dataWithJSONObject:result
-                                                                                                 options:NSJSONWritingPrettyPrinted
-                                                                                                   error:&parseError];
-                                              if (!parseError) {
-                                                  stringifiedResult = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-                                              }
-                                          }
-                                          // Call the callback with the parse error (if any) and parse result
-                                          callback(@[parseError.localizedDescription, @(affectedRows), stringifiedResult]);
+                                          callback(@[error ? error : [NSNull null], @(affectedRows), result]);
     }];
 }
 
