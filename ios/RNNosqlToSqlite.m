@@ -26,7 +26,7 @@ RCT_EXPORT_METHOD(performSelect:(NSString *)query completion:(RCTResponseSenderB
                                       completion:^(NSString * _Nullable error, NSInteger affectedRows, NSArray * _Nullable result) {
                                           // Return the callback if database query errored out
                                           if (error) {
-                                              callback(@[error, @(affectedRows), stringifiedResult]);
+                                              callback(@[error, @(affectedRows), nil]);
                                               return;
                                           }
                                           
@@ -34,7 +34,7 @@ RCT_EXPORT_METHOD(performSelect:(NSString *)query completion:(RCTResponseSenderB
                                           NSString *stringifiedResult = nil;
                                           NSError *parseError = nil;
                                           if (result) {
-                                              NSData *jsonData = [NSJSONSerialization dataWithJSONObject:dictionaryOrArrayToOutput
+                                              NSData *jsonData = [NSJSONSerialization dataWithJSONObject:result
                                                                                                  options:NSJSONWritingPrettyPrinted
                                                                                                    error:&parseError];
                                               if (!parseError) {
