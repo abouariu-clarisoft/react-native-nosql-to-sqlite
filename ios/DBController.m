@@ -1,13 +1,6 @@
-//
-//  DBController.m
-//  WHO
-//
-//  Created by Andrei Bouariu on 17/10/2018.
-//  Copyright © 2018 clarisoft. All rights reserved.
-//
-
 #import "DBController.h"
 #import "FileReader.h"
+#import "NoSQLUtils.h"
 
 #import <sqlite3.h>
 
@@ -22,6 +15,8 @@
 @end
 
 @implementation DBController
+
+static int queue_limit = 2000;
 
 + (instancetype)sharedInstance {
     static DBController *instance = nil;
@@ -60,7 +55,6 @@
     _encryptionKey = encryptionKey;
 }
 
-
 /**
  Configures the database, sets the configuration, sets the encryption key and opens the database.
  @param name The database name
@@ -78,51 +72,70 @@
     }];
 }
 
+
 /**
- Receives an array with filenames of the collections that must be imported in the database.
- These collections are found in the documents directory.
+ Creates SQLite tables.
+ Populates the SQLite tables with data from the json files.
+ @param completion Called when synchronization is complete or an error occurs
  */
-- (void)importData:(void (^)(BOOL))completion {
-    NSArray *collections = [[self.config allKeys] sortedArrayUsingComparator:^NSComparisonResult(id  _Nonnull obj1, id  _Nonnull obj2) {
-        // force a collection to be processed first
-        /*
-         if ([obj1 isEqualToString:@"relationship"]) {
-         if ([obj1 compare:obj2] == NSOrderedAscending) {
-         return NSOrderedAscending;
-         } else return NSOrderedDescending;
-         }
-         if ([obj2 isEqualToString:@"relationship"]) {
-         if ([obj1 compare:obj2] == NSOrderedAscending) {
-         return NSOrderedDescending;
-         } else return NSOrderedAscending;
-         }
-         */
-        return [obj1 compare:obj2];
+- (void)syncData:(void(^)(NSString * _Nonnull collection, NSInteger progress, NSInteger total))progress
+      completion:(void(^)(NSArray * _Nonnull errors))completion {
+    
+    // Create the tables
+    dispatch_group_t tables_group = dispatch_group_create();
+    dispatch_group_enter(tables_group);
+    [self createTables:^(NSError * _Nullable error) {
+        // Break when tables creation fails
+        if (error) {
+            completion(@[error]);
+            return;
+        }
+        dispatch_group_leave(tables_group);
     }];
     
-    // Determine the order to create the tables
-    NSArray *tableOrder = [self getTableCreationOrder:collections processed:nil];
-    NSAssert(tableOrder.count == collections.count, @"Unable to determine table creation order due to dependencies!");
+    dispatch_group_notify(tables_group, self.backgroundQueue, ^{
+        // Populate the tables
+        [self populateTables:progress completion:completion];
+    });
+}
+
+/**
+ Creates all the SQLite tables specified in the config file.
+ @param completion Called when all tables are created or an error occurs.
+ */
+- (void)createTables:(void(^)(NSError * _Nullable error))completion {
+    // Retrieve the order in which the tables must be created
+    NSArray *tables = [self getTableCreationOrder:[self.config allKeys] processed:nil];
+    // Counter used to call completion when all tables are processed
+    __block NSInteger createdTables = 0;
     
-    // Import data in each table
-    [collections enumerateObjectsUsingBlock:^(NSString *collection, NSUInteger idx, BOOL * _Nonnull stop) {
-        dispatch_async(self.backgroundQueue, ^{
-            NSLog(@"Started importing collection %@...", collection);
-            [self importCollection:collection];
-            NSLog(@"Finished importing data in collection %@!", collection);
-            // Call completion when all collections have been imported
-            if (idx == collections.count - 1) {
-                completion(YES);
-            }
-        });
-    }];
+    // Create tables one by one
+    for (NSString *table in tables) {
+        [self.dbQueue inDatabase:^(FMDatabase * _Nonnull db) {
+            [self createTable:table
+                       config:self.config
+                     database:db
+                     callback:^(NSError * _Nullable error) {
+                         // Break when a table creation fails
+                         if (error) {
+                             completion(error);
+                             return;
+                         }
+                         createdTables++;
+                         
+                         // call completion when all tables are created
+                         if (createdTables == tables.count) {
+                             completion(nil);
+                         }
+                     }];
+        }];
+    }
 }
 
 /**
  Determines the order to create tables by analyzing the foreign keys.
  When a table with foreign keys is analyzed, the referenced tables are also recursively analyzed up to the point where tables with no dependencies are found.
  If cyclic dependencies are discovered, the cycle will not be added to the result list and the number of elements of will be different from the number of elements of the input array.
- 
  @param collections An array of strings representing the table names.
  @param processed An array of strings representing the collections that have already been added to the processing list
  @return An array of strings representing the table creation order.
@@ -182,62 +195,14 @@
     return processed;
 }
 
-- (void)importCollection:(NSString *)collection {
-    
-    // create the table
-    __weak typeof (self) weakSelf = self;
-    [self.dbQueue inDatabase:^(FMDatabase * _Nonnull db) {
-        [weakSelf createTable:collection config:weakSelf.config database:db callback:^(BOOL created) {
-            if (!created) {
-                NSLog(@"Collection %@ not created!", collection);
-            }
-        }];
-    }];
-    
-    // import data
-    NSArray *documentPaths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentDir = [documentPaths objectAtIndex:0];
-    FileReader *fileReader = [[FileReader alloc] initWithFilePath:[documentDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.json", collection]]];
-    
-    __block NSMutableString *importableObject;
-    [fileReader enumerateLinesUsingBlock:^(NSString * _Nonnull line, BOOL * _Nonnull stop) {
-        // parse the ugly object that destroys lifes
-        if (![line hasPrefix:@"  "]) {
-            return;
-        }
-        
-        //mark object start
-        if ([line hasPrefix:@"  {"]) {
-            importableObject = [[NSMutableString alloc] init];
-        }
-        
-        // mark object end
-        if ([line hasPrefix:@"  }"]) {
-            [importableObject appendString:@"  }"];
-            //process object
-            NSError *jsonError;
-            NSData *objectData = [importableObject dataUsingEncoding:NSUTF8StringEncoding];
-            NSDictionary *json = [NSJSONSerialization JSONObjectWithData:objectData
-                                                                 options:NSJSONReadingMutableContainers
-                                                                   error:&jsonError];
-            
-            [self convertObject:json forTable:collection config:self.config[collection]];
-        } else {
-            [importableObject appendString:line];
-        }
-    }];
-}
-
-
 /**
- Creates a table (if it doesn't exist) based on the configuration
- 
+ Creates and executes a query to create a table (if it doesn't exist) in the database based on the configuration
  @param table The table name
  @param config The configuration structure
  @param db The database name
  @param callback Invoked with (BOOL created)
  */
-- (void)createTable:(NSString *)table config:(NSDictionary *)config database:(FMDatabase *)db callback:(void (^)(BOOL created))callback {
+- (void)createTable:(NSString *)table config:(NSDictionary *)config database:(FMDatabase *)db callback:(void (^)(NSError * _Nullable error))callback {
     // Build the query to create the table
     NSMutableString *query = [[NSMutableString alloc] init];
     NSMutableString *constraint = [[NSMutableString alloc] init];
@@ -255,7 +220,7 @@
         if (value[@"references"]) {
             hasFKs = YES;
             if (value[@"manyOn"]) {
-                // create table for many to many relationship
+                // Create table for many to many relationship
                 NSString *tableName = [NSString stringWithFormat:@"%@_%@", table, value[@"references"]];
                 NSDictionary *manyToManyConfig = @{
                                                    tableName: @{
@@ -268,12 +233,14 @@
                                                                    @"references": value[@"references"]},
                                                            }
                                                    };
+                
+                // Create the many to many table recursively
                 [self createTable:tableName
                            config:manyToManyConfig
                          database:db
                          callback:callback];
             } else {
-                // add FK constraint
+                // Add FK constraint
                 [constraint appendString:@"\n"];
                 [constraint appendFormat:@"CONSTRAINT fk_%@ ", value[@"references"]];
                 [constraint appendFormat:@"FOREIGN KEY (%@) ", key];
@@ -283,7 +250,11 @@
         }
         processed++;
     }];
+    
+    // Add the "extra field"
     [query appendString:@"extra VARCHAR(5000)"];
+    
+    // Add a comma if it has a foreign key
     if (hasFKs) {
         [query appendString:@",\n"];
         [query appendString:constraint];
@@ -292,12 +263,119 @@
     }
     [query appendString:@");"];
     
+    // Execute query to create table
     BOOL result = [db executeStatements:query];
+    NSError *error = nil;
+    if (!result) {
+        error = [db lastError];
+    }
     
-    callback(result);
+    callback(error);
 }
 
-- (void)convertObject:(NSDictionary *)object forTable:(NSString *)table config:(NSDictionary *)config {
+/**
+ Takes every collection from the config file and populates them asynchronously in series.
+ @param progress An events function called every time progress is achieved. Invoked with (NSString * _Nonnull table, NSInteger progress, NSInteger total).
+ @param completion A function called when all the tables are populated or an error occurs. Invoked with (NSArray * _Nonnull errors).
+ */
+- (void)populateTables:(void(^)(NSString * _Nonnull table, NSInteger progress, NSInteger total))progress
+            completion:(void(^)(NSArray * _Nonnull errors))completion {
+    // Retrieve the order in which the tables must be populated
+    NSArray *tables = [self getTableCreationOrder:[self.config allKeys] processed:nil];
+    
+    // Used to wait for a table to be populated before populating the next table
+    dispatch_semaphore_t collectionsSemaphore = dispatch_semaphore_create(0);
+    
+    NSMutableArray *errors = [NSMutableArray array];
+    for (NSString *table in tables) {
+        NSLog(@"Populating collection %@...", table);
+        [self populateTable:table semaphore:collectionsSemaphore progress:^(NSArray *recordErrors, NSInteger processed, NSInteger total) {
+            if (errors.count > 0) {
+                [errors addObjectsFromArray:recordErrors];
+            }
+            progress(table, processed, total);
+        }];
+        
+        dispatch_semaphore_wait(collectionsSemaphore, DISPATCH_TIME_FOREVER);
+    }
+    completion(errors);
+}
+
+/**
+ Reads the json file with the specified name line by line and inserts the records in the database table with the same name.
+ @param table The name of the collection that will be read. It also represents the name of the SQLite table where the records will be inserted.
+ @param collectionSemaphore A semaphore that signals when the collection processing is complete.
+ @param progress A method that is called for every processed record. Invoked with (NSArray * _Nullable errors, NSInteger processed, NSInteger total).
+ */
+- (void)populateTable:(NSString *)table
+            semaphore:(dispatch_semaphore_t)collectionSemaphore
+             progress:(void(^)(NSArray * _Nullable errors, NSInteger processed, NSInteger total))progress {
+    @autoreleasepool {
+        
+        // Count the objects in the collection to determine progress
+        NSInteger total = [NoSQLUtils countNumberOfObjectsInCollection:table];
+        
+        // Create a file reader to parse the json file line by line
+        FileReader *fileReader = [NoSQLUtils fileReaderForCollection:table];
+        
+        // Objects will be created in a batch of `queue_limit` at a time. Increase or decrease `queue_limit` for optimal performance.
+        dispatch_semaphore_t recordsSemaphore = dispatch_semaphore_create(queue_limit);
+        NSString *line = nil;
+        __block NSMutableString *importableObject = nil;
+        __block NSInteger processed = 0;
+        while ((line = [fileReader readLine])) {
+            @autoreleasepool {
+                // Skip lines that do not start with 2 empty spaces. Those lines aren't part of an object, they are usually the first and last lines in the file.
+                if (![line hasPrefix:@"  "]) {
+                    continue;
+                }
+                // Mark object start
+                if ([line hasPrefix:@"  {"]) {
+                    importableObject = [[NSMutableString alloc] init];
+                }
+                // Mark object end
+                if ([line hasPrefix:@"  }"]) {
+                    
+                    [importableObject appendString:@"  }"];
+                    
+                    // Create an NSDictionary from the stringified JSON
+                    NSError *jsonError;
+                    NSData *objectData = [importableObject dataUsingEncoding:NSUTF8StringEncoding];
+                    NSDictionary *json = [NSJSONSerialization JSONObjectWithData:objectData
+                                                                         options:NSJSONReadingMutableContainers
+                                                                           error:&jsonError];
+                    
+                    // Insert/update the object in database
+                    __block NSMutableArray *recordsErrors = [NSMutableArray array];
+                    [self convertObject:json forTable:table config:self.config[table] completion:^(NSArray * _Nullable errors) {
+                        [recordsErrors addObjectsFromArray:errors];
+                        dispatch_semaphore_signal(recordsSemaphore);
+                    }];
+                    
+                    // When the object is inserted/updated, signal the record semaphore to continue with the next record
+                    dispatch_semaphore_wait(recordsSemaphore, DISPATCH_TIME_FOREVER);
+                    progress(recordsErrors, ++processed, total);
+                } else {
+                    // Append the line
+                    [importableObject appendString:line];
+                }
+            }
+        }
+        // When the file is processed, signal the collection semaphore to proceed with the next file
+        dispatch_semaphore_signal(collectionSemaphore);
+    }
+}
+
+/**
+ Converts an object from the JSON collection to an squished object (important fields + extra).
+ Inserts in database the squished object and its related records (for many to many relationships);
+ 
+ @param object The object from the JSON collection
+ @param table The name of the table/JSON collection
+ @param config The configuration file to perform the mapping
+ @param completion Callback that is called when all the records are processed. Every error is added to an array of errors that is passed to the completion block. Invoked with (NSArray * _Nullable errors).
+ */
+- (void)convertObject:(NSDictionary *)object forTable:(NSString *)table config:(NSDictionary *)config completion:(void(^)(NSArray * _Nullable errors))completion {
     NSArray *importantConfigFields = [config allKeys];
     NSMutableDictionary *mappedObject = [[NSMutableDictionary alloc] init];
     NSMutableDictionary *extraFields = [[NSMutableDictionary alloc] init];
@@ -381,23 +459,53 @@
     // Set stringified JSON to be saved in the "extra" column
     [mappedObject setObject:stringifiedExtraFields forKey:@"extra"];
     
-    // Insert the current record
-    [self insertRecord:mappedObject inTable:table];
+    __block NSMutableArray *errors = [NSMutableArray array];
     
-    // Insert the additional records related to many-to-many relationship with the current record
-    [manyToManyRecords enumerateObjectsUsingBlock:^(NSDictionary *record, NSUInteger idx, BOOL * _Nonnull stop) {
-        [self insertRecord:record inTable:record[@"table"]];
-    }];
+    dispatch_group_t recordGroup = dispatch_group_create();
+    dispatch_queue_t recordQueue = dispatch_queue_create("recordQueue", DISPATCH_QUEUE_CONCURRENT);
+    
+    dispatch_group_async(recordGroup, recordQueue, ^{
+        // Insert the current record
+        [self insertRecord:mappedObject inTable:table completion:^(NSError * _Nullable error) {
+            if (error) {
+                [errors addObject:error];
+            }
+        }];
+    });
+    
+    dispatch_group_async(recordGroup, recordQueue, ^{
+        // Insert the additional records related to many-to-many relationship with the current record
+        [manyToManyRecords enumerateObjectsUsingBlock:^(NSDictionary *record, NSUInteger idx, BOOL * _Nonnull stop) {
+            [self insertRecord:record inTable:record[@"table"] completion:^(NSError * _Nullable error) {
+                if (error) {
+                    [errors addObject:error];
+                }
+            }];
+        }];
+    });
+    
+    dispatch_group_notify(recordGroup, dispatch_queue_create("q", DISPATCH_QUEUE_CONCURRENT), ^{
+        completion(errors);
+    });
     
 }
 
-- (void)insertRecord:(NSDictionary *)record inTable:(NSString *)table {
+/**
+ Inserts a record into the specified table.
+ @param record The record to be inserted
+ @param table The table where the record will be inserted
+ @param completion Callback called once the operation is complete. Invoked with (NSError * _Nullable error)
+ */
+- (void)insertRecord:(NSDictionary *)record inTable:(NSString *)table completion:(void(^)(NSError * _Nullable error))completion {
+    // Build SQL query
     NSMutableString *query = [[NSMutableString alloc] init];
     [query appendFormat:@"INSERT OR REPLACE INTO %@ (\n", table];
     NSMutableString *fields = [[NSMutableString alloc] initWithCapacity:[record allKeys].count];
     NSMutableString *placeHolderValues = [[NSMutableString alloc] initWithCapacity:[record allKeys].count];
     NSMutableArray *values = [NSMutableArray arrayWithCapacity:[record allKeys].count];
     __block NSInteger processed = 0;
+    
+    // Parametrize query with (?) for values
     [record enumerateKeysAndObjectsUsingBlock:^(NSString *field, NSString *value, BOOL * _Nonnull stop) {
         processed++;
         if ([field isEqualToString:@"table"]) {
@@ -418,15 +526,20 @@
     [query appendString:@"VALUES ("];
     [query appendString:placeHolderValues];
     
+    // Execute query
     [self.dbQueue inDatabase:^(FMDatabase * _Nonnull db) {
         NSError *error = nil;
         [db executeUpdate:query values:values error:&error];
         if (error) {
             NSLog(@"Error inserting object %@ in table %@: %@", record, table, error.localizedDescription);
         }
+        completion(error);
     }];
 }
 
+/**
+ Executes a query on 3 joined tables
+ */
 - (void)performTestQuery {
     
     /**
@@ -456,17 +569,15 @@
     left join relationship as R1 on R1.persons_0_id = P._id \
     left join relationship as R2 on R2.persons_1_id = P._id \
     order by F.date, F._id desc \
-    limit 100, 50";
+    limit 20, 10";
     
     [self.dbQueue inDatabase:^(FMDatabase * _Nonnull db) {
         FMResultSet *set = [db executeQuery:query];
-        NSInteger count = 0;
         while ([set next]) {
-            count++;
-            NSLog(@"%d", [set intForColumn:@"age_years"]);
+            NSLog(@"%@", [set stringForColumn:@"followup-extra"]);
         }
         NSDate *endDate = [NSDate date];
-        NSLog(@"%@ Query execution complete! %ld results returned in %f ms", endDate, count, [endDate timeIntervalSinceDate:date]*1000);
+        NSLog(@"%@ Query executed in %f ms", endDate, [endDate timeIntervalSinceDate:date]*1000);
     }];
 }
 
@@ -475,28 +586,47 @@
  Joining tables with the same column names will result the value of the last column to be overwritten in the object record.
  Therefore, is advisable to perform queries that return records with unique column names.
  @param query The SELECT query
- @param completion Invoked with (error, affectedRows, result)
+ @param completion Invoked with (NSError * _Nullable error, NSArray * _Nullable result)
  */
-- (void)performSelect:(NSString *)query completion:(nonnull void (^)(NSString * _Nullable, NSInteger, NSArray * _Nullable))completion {
+- (void)performSelect:(NSString *)query completion:(nonnull void (^)(NSError * _Nullable, NSArray * _Nullable))completion {
     [self.dbQueue inDatabase:^(FMDatabase * _Nonnull db) {
-        // execute query
+        // Execute query
         FMResultSet *set = [db executeQuery:query];
         
-        // null set represents error
+        // A null set means an error occurred
         if (!set) {
             // return completion with error
-            completion(db.lastErrorMessage, 0, nil);
+            completion(db.lastError, nil);
             return;
         }
         
-        // add records to result array
+        // Add records to result array
         NSMutableArray *result = [[NSMutableArray alloc] init];
         while ([set next]) {
             [result addObject:[set resultDictionary]];
         }
         
-        // call completion with result
-        completion(nil, 0, result);
+        // Call completion with result
+        completion(nil, result);
+    }];
+}
+
+/**
+ Executes CREATE, UPDATE, INSERT, ALTER, COMMIT, BEGIN, DETACH, DELETE, DROP, END, EXPLAIN, VACUUM, and REPLACE statements and calls completion with a nullable NSString representing an error message.
+ @param query The query to be executed
+ @param completion Invoked with (NSString * _Nullable error)
+ */
+- (void)performUpdate:(NSString *)query completion:(void (^)(NSError * _Nullable))completion {
+    [self.dbQueue inDatabase:^(FMDatabase * _Nonnull db) {
+        // Execute query
+        BOOL result = [db executeUpdate:query];
+        completion(result ? nil : db.lastError);
+    }];
+}
+
+- (void)closeDatabase {
+    [self.dbQueue inDatabase:^(FMDatabase * _Nonnull db) {
+        [db close];
     }];
 }
 

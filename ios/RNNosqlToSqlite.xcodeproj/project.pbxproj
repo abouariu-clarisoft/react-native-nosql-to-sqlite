@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		674373CB217E32D40096507A /* FileReader.m in Sources */ = {isa = PBXBuildFile; fileRef = 674373C7217E32D40096507A /* FileReader.m */; };
 		674373CC217E32D40096507A /* DBController.m in Sources */ = {isa = PBXBuildFile; fileRef = 674373C9217E32D40096507A /* DBController.m */; };
+		67B8A21321B53703003FBF0E /* NoSQLUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = 67B8A21121B53703003FBF0E /* NoSQLUtils.m */; };
 		B3E7B58A1CC2AC0600A0062D /* RNNosqlToSqlite.m in Sources */ = {isa = PBXBuildFile; fileRef = B3E7B5891CC2AC0600A0062D /* RNNosqlToSqlite.m */; };
 /* End PBXBuildFile section */
 
@@ -30,6 +31,8 @@
 		674373C8217E32D40096507A /* FileReader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FileReader.h; sourceTree = "<group>"; };
 		674373C9217E32D40096507A /* DBController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DBController.m; sourceTree = "<group>"; };
 		674373CA217E32D40096507A /* DBController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DBController.h; sourceTree = "<group>"; };
+		67B8A21121B53703003FBF0E /* NoSQLUtils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NoSQLUtils.m; sourceTree = SOURCE_ROOT; };
+		67B8A21221B53703003FBF0E /* NoSQLUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NoSQLUtils.h; sourceTree = SOURCE_ROOT; };
 		B3E7B5881CC2AC0600A0062D /* RNNosqlToSqlite.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RNNosqlToSqlite.h; sourceTree = "<group>"; };
 		B3E7B5891CC2AC0600A0062D /* RNNosqlToSqlite.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RNNosqlToSqlite.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -68,8 +71,10 @@
 		674373C6217E32D40096507A /* Utils */ = {
 			isa = PBXGroup;
 			children = (
-				674373C7217E32D40096507A /* FileReader.m */,
+				67B8A21221B53703003FBF0E /* NoSQLUtils.h */,
+				67B8A21121B53703003FBF0E /* NoSQLUtils.m */,
 				674373C8217E32D40096507A /* FileReader.h */,
+				674373C7217E32D40096507A /* FileReader.m */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -131,6 +136,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				674373CB217E32D40096507A /* FileReader.m in Sources */,
+				67B8A21321B53703003FBF0E /* NoSQLUtils.m in Sources */,
 				B3E7B58A1CC2AC0600A0062D /* RNNosqlToSqlite.m in Sources */,
 				674373CC217E32D40096507A /* DBController.m in Sources */,
 			);
