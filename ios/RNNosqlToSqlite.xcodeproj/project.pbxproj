@@ -9,7 +9,10 @@
 /* Begin PBXBuildFile section */
 		674373CB217E32D40096507A /* FileReader.m in Sources */ = {isa = PBXBuildFile; fileRef = 674373C7217E32D40096507A /* FileReader.m */; };
 		674373CC217E32D40096507A /* DBController.m in Sources */ = {isa = PBXBuildFile; fileRef = 674373C9217E32D40096507A /* DBController.m */; };
-		67B8A21321B53703003FBF0E /* NoSQLUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = 67B8A21121B53703003FBF0E /* NoSQLUtils.m */; };
+		67D1758E21B6EDA5007679C7 /* SQLUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = 67D1758B21B6EDA5007679C7 /* SQLUtils.m */; };
+		67D1758F21B6EDA5007679C7 /* NoSQLUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = 67D1758C21B6EDA5007679C7 /* NoSQLUtils.m */; };
+		67D1759421B6EDAD007679C7 /* DBExport.m in Sources */ = {isa = PBXBuildFile; fileRef = 67D1759221B6EDAD007679C7 /* DBExport.m */; };
+		67D1759521B6EDAD007679C7 /* DBImport.m in Sources */ = {isa = PBXBuildFile; fileRef = 67D1759321B6EDAD007679C7 /* DBImport.m */; };
 		B3E7B58A1CC2AC0600A0062D /* RNNosqlToSqlite.m in Sources */ = {isa = PBXBuildFile; fileRef = B3E7B5891CC2AC0600A0062D /* RNNosqlToSqlite.m */; };
 /* End PBXBuildFile section */
 
@@ -31,8 +34,14 @@
 		674373C8217E32D40096507A /* FileReader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FileReader.h; sourceTree = "<group>"; };
 		674373C9217E32D40096507A /* DBController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DBController.m; sourceTree = "<group>"; };
 		674373CA217E32D40096507A /* DBController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DBController.h; sourceTree = "<group>"; };
-		67B8A21121B53703003FBF0E /* NoSQLUtils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NoSQLUtils.m; sourceTree = SOURCE_ROOT; };
-		67B8A21221B53703003FBF0E /* NoSQLUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NoSQLUtils.h; sourceTree = SOURCE_ROOT; };
+		67D1758A21B6EDA5007679C7 /* SQLUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SQLUtils.h; sourceTree = "<group>"; };
+		67D1758B21B6EDA5007679C7 /* SQLUtils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SQLUtils.m; sourceTree = "<group>"; };
+		67D1758C21B6EDA5007679C7 /* NoSQLUtils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NoSQLUtils.m; sourceTree = "<group>"; };
+		67D1758D21B6EDA5007679C7 /* NoSQLUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NoSQLUtils.h; sourceTree = "<group>"; };
+		67D1759021B6EDAD007679C7 /* DBExport.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DBExport.h; sourceTree = "<group>"; };
+		67D1759121B6EDAD007679C7 /* DBImport.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DBImport.h; sourceTree = "<group>"; };
+		67D1759221B6EDAD007679C7 /* DBExport.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DBExport.m; sourceTree = "<group>"; };
+		67D1759321B6EDAD007679C7 /* DBImport.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DBImport.m; sourceTree = "<group>"; };
 		B3E7B5881CC2AC0600A0062D /* RNNosqlToSqlite.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RNNosqlToSqlite.h; sourceTree = "<group>"; };
 		B3E7B5891CC2AC0600A0062D /* RNNosqlToSqlite.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RNNosqlToSqlite.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -59,10 +68,14 @@
 		58B511D21A9E6C8500147676 = {
 			isa = PBXGroup;
 			children = (
-				674373CA217E32D40096507A /* DBController.h */,
-				674373C9217E32D40096507A /* DBController.m */,
 				B3E7B5881CC2AC0600A0062D /* RNNosqlToSqlite.h */,
 				B3E7B5891CC2AC0600A0062D /* RNNosqlToSqlite.m */,
+				674373CA217E32D40096507A /* DBController.h */,
+				674373C9217E32D40096507A /* DBController.m */,
+				67D1759121B6EDAD007679C7 /* DBImport.h */,
+				67D1759321B6EDAD007679C7 /* DBImport.m */,
+				67D1759021B6EDAD007679C7 /* DBExport.h */,
+				67D1759221B6EDAD007679C7 /* DBExport.m */,
 				674373C6217E32D40096507A /* Utils */,
 				134814211AA4EA7D00B7C361 /* Products */,
 			);
@@ -71,8 +84,10 @@
 		674373C6217E32D40096507A /* Utils */ = {
 			isa = PBXGroup;
 			children = (
-				67B8A21221B53703003FBF0E /* NoSQLUtils.h */,
-				67B8A21121B53703003FBF0E /* NoSQLUtils.m */,
+				67D1758D21B6EDA5007679C7 /* NoSQLUtils.h */,
+				67D1758C21B6EDA5007679C7 /* NoSQLUtils.m */,
+				67D1758A21B6EDA5007679C7 /* SQLUtils.h */,
+				67D1758B21B6EDA5007679C7 /* SQLUtils.m */,
 				674373C8217E32D40096507A /* FileReader.h */,
 				674373C7217E32D40096507A /* FileReader.m */,
 			);
@@ -136,9 +151,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				674373CB217E32D40096507A /* FileReader.m in Sources */,
-				67B8A21321B53703003FBF0E /* NoSQLUtils.m in Sources */,
+				67D1759421B6EDAD007679C7 /* DBExport.m in Sources */,
+				67D1759521B6EDAD007679C7 /* DBImport.m in Sources */,
 				B3E7B58A1CC2AC0600A0062D /* RNNosqlToSqlite.m in Sources */,
+				67D1758E21B6EDA5007679C7 /* SQLUtils.m in Sources */,
 				674373CC217E32D40096507A /* DBController.m in Sources */,
+				67D1758F21B6EDA5007679C7 /* NoSQLUtils.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

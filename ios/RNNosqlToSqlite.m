@@ -14,12 +14,20 @@ RCT_EXPORT_METHOD(configureDatabaseWithName:(NSString *)name encryptionKey:(NSSt
     [[DBController sharedInstance] configureDatabaseWithName:name encryptionKey:key config:config];
 }
 
-RCT_EXPORT_METHOD(syncDataWithProgress:(RCTResponseSenderBlock)progress callback:(RCTResponseSenderBlock)callback) {
-    [[DBController sharedInstance] syncData:^(NSString * _Nonnull collection, NSInteger progress, NSInteger total) {
+RCT_EXPORT_METHOD(importDataWithProgress:(RCTResponseSenderBlock)progress callback:(RCTResponseSenderBlock)callback) {
+    [[DBController sharedInstance] importDataWithProgress:^(NSString * _Nonnull collection, NSInteger progress, NSInteger total) {
         progress(@[collection, @(progress), @(total)]);
     } completion:^(NSArray * _Nonnull errors) {
         callback(@[errors.count > 0 ? errors : [NSNull null]]);
-    }]
+    }];
+}
+
+RCT_EXPORT_METHOD(exportDataWithProgress:(RCTResponseSenderBlock)progress callback:(RCTResponseSenderBlock)callback) {
+    [[DBController sharedInstance] exportDataWithProgress:^(NSString * _Nonnull collection, NSInteger progress, NSInteger total) {
+        progress(@[collection, @(progress), @(total)]);
+    } completion:^(NSArray * _Nonnull errors) {
+        callback(@[errors.count > 0 ? errors : [NSNull null]]);
+    }];
 }
 
 RCT_EXPORT_METHOD(performSelect:(NSString *)query completion:(RCTResponseSenderBlock)callback) {

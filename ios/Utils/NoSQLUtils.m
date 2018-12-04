@@ -7,7 +7,7 @@
  @param collection The name of the collection
  @return The number of objects in the collection
  */
-+ (NSInteger)countNumberOfObjectsInCollection:(NSString *)collection {
++ (NSInteger)countNumberOfObjectsInCollection:(NSString *)collection {    
     @autoreleasepool {
         // Used to read the collection line by line
         FileReader *fileReader = [NoSQLUtils fileReaderForCollection:collection];
