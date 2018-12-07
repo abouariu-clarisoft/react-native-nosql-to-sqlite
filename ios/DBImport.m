@@ -166,6 +166,10 @@ static int queue_limit = 2000;
                 NSString *tableName = [NSString stringWithFormat:@"%@_%@", table, value[@"references"]];
                 NSDictionary *manyToManyConfig = @{
                                                    tableName: @{
+                                                           @"_id": @{
+                                                                   @"type": @"VARCHAR(100)",
+                                                                   @"pk": @YES
+                                                                   },
                                                            [NSString stringWithFormat:@"%@Id", table]: @{
                                                                    @"type": @"VARCHAR(100)",
                                                                    @"references": table
@@ -342,8 +346,15 @@ static int queue_limit = 2000;
                 } else {
                     [manyArray enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
                         if (obj[components[1]]) {
+                            // Set the many to many record primary key as a concatenation between the 2 keys.
+                            // If the second key is null, the primary key will be the first key.
+                            NSMutableString *manyToManyPK = [[NSMutableString alloc] initWithString:object[@"_id"]];
+                            if (obj[components[1]] && obj[components[1]] != [NSNull null]) {
+                                [manyToManyPK appendString:obj[components[1]]];
+                            }
                             [manyToManyRecords addObject:@{
                                                            @"table": [NSString stringWithFormat:@"%@_%@", table, config[key][@"references"]],
+                                                           @"_id": [NSString stringWithFormat:@"%@", manyToManyPK],
                                                            [NSString stringWithFormat:@"%@Id", table]: object[@"_id"],
                                                            components[1]: obj[components[1]]
                                                            }];
