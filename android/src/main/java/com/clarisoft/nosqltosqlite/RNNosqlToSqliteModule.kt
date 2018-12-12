@@ -36,7 +36,7 @@ class RNNosqlToSqliteModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun exportData(dir: String, callback: Callback) {
         runOnIoThread {
-            dbController.export(Environment.getExternalStorageDirectory().path + "/") //TODO
+            dbController.export("$dir/") //TODO
             callback()
         }
     }
